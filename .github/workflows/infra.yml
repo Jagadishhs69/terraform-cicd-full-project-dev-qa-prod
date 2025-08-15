@@ -41,7 +41,7 @@ jobs:
         working-directory: ./environment/dev
 
       - name: Terraform Plan
-        run: terraform plan -var-file="../../tfvars/${{ env.ENVIRONMENT }}.tfvars" -no-color > tfplan-${{ env.ENVIRONMENT }}.txt 2>&1
+        run: terraform plan -var-file="../../tfvars/dev.tfvars" -no-color > tfplan-dev.txt 2>&1
         working-directory: ./environment/dev
           # terraform plan -out=tfplan
           # terraform show -no-color tfplan > plan.txt
@@ -51,16 +51,16 @@ jobs:
 
       - name: Verify Plan File
         run: |
-          ls -l tfplan-${{ env.ENVIRONMENT }}.txt
-          cat tfplan-${{ env.ENVIRONMENT }}.txt
-        working-directory: ./environment/${{ env.ENVIRONMENT }}
+          ls -l tfplan-dev.txt
+          cat tfplan-dev.txt
+        working-directory: ./environment/dev
         continue-on-error: true # Allow debugging if file is missing
 
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ env.ENVIRONMENT }}
-          path: ./environment/${{ env.ENVIRONMENT }}/tfplan-${{ env.ENVIRONMENT }}.txt
+          name: tfplan-dev
+          path: ./environment/dev/tfplan-dev.txt
           retention-days: 5
 
   terraform-apply:
@@ -92,15 +92,15 @@ jobs:
       # - name: Download Terraform Plan Artifact
       #   uses: actions/download-artifact@v4
       #   with:
-      #     name: tfplan-${{ env.ENVIRONMENT }}
-      #     path: ./environment/${{ env.ENVIRONMENT }}
+      #     name: tfplan-dev
+      #     path: ./environment/dev
 
       - name: Terraform Init
         run: terraform init
         working-directory: ./environment/dev
 
       - name: Terraform Apply
-        run:  terraform apply -auto-approve -var-file="../../tfvars/${{ env.ENVIRONMENT }}.tfvars"
+        run:  terraform apply -auto-approve -var-file="../../tfvars/dev.tfvars"
         working-directory: ./environment/dev
         # env:
         #   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
