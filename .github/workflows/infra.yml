@@ -95,9 +95,9 @@ jobs:
       #     name: tfplan-${{ env.ENVIRONMENT }}
       #     path: ./environment/${{ env.ENVIRONMENT }}
 
-      # - name: Terraform Init
-      #   run: terraform init
-      #   working-directory: ./environment/dev
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./environment/dev
 
       - name: Terraform Apply
         run:  terraform apply -auto-approve -var-file="../../tfvars/${{ env.ENVIRONMENT }}.tfvars"
