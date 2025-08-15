@@ -39,7 +39,7 @@ jobs:
 
       - name: Terraform Plan
         working-directory: ./environment/${{ github.event.inputs.environment }}
-        run: terraform plan -out=tfplan -var-file=${{ github.event.inputs.environment }}.tfvars
+        run: terraform plan -out=tfplan -var-file="../../tfvars/${{ github.event.inputs.environment }}.tfvars"
 
       - name: Convert plan to text
         working-directory: ./environment/${{ github.event.inputs.environment }}
