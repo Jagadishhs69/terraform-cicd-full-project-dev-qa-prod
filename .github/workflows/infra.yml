@@ -42,7 +42,7 @@ jobs:
 
       - name: Terraform Plan
         run: terraform plan -var-file="../../tfvars/${{ env.ENVIRONMENT }}.tfvars" -no-color > tfplan-${{ env.ENVIRONMENT }}.txt 2>&1
-        working-directory: ./environment/${{ env.ENVIRONMENT }}
+        working-directory: ./environment/dev
           # terraform plan -out=tfplan
           # terraform show -no-color tfplan > plan.txt
         # env:
