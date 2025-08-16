@@ -17,6 +17,7 @@ app.get('/', async (req, res) => {
     const result = await pool.query('SELECT NOW()');
     res.send(`Hello from Node.js! Current time from DB: ${result.rows[0].now}`);
   } catch (err) {
+    console.error('Database connection error:', err.message);
     res.status(500).send('Database connection error');
   }
 });
