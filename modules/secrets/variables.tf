@@ -12,3 +12,17 @@ variable "db_password" {
   description = "RDS database password"
   type        = string
 }
+
+variable "db_endpoint" {
+  type = string
+}
+
+variable "db_port" {
+  type    = number
+  default = 5432
+}
+
+variable "db_name" {
+  type    = string
+  default = "postgres"
+}
