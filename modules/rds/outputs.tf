@@ -3,13 +3,13 @@ output "rds_endpoint" {
 }
 
 output "db_endpoint" {
-  value = aws_db_instance.this.address
+  value = aws_db_instance.postgres.address
 }
 
 output "db_port" {
-  value = aws_db_instance.this.port
+  value = aws_db_instance.postgres.port
 }
 
 output "db_name" {
-  value = aws_db_instance.this.db_name
+  value = aws_db_instance.postgres.db_name
 }

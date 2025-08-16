@@ -67,18 +67,3 @@ variable "db_password" {
   description = "RDS database password"
   type        = string
 }
-
-variable "db_endpoint" {
-  description = "RDS database password"
-  type        = string
-}
-
-variable "db_port" {
-  description = "RDS database password"
-  type        = string
-}
-
-variable "db_name" {
-  description = "RDS database password"
-  type        = string
-}
