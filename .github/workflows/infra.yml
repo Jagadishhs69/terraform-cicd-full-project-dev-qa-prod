@@ -62,7 +62,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: terraform-plan
     environment:
-      name: prod-approval   # Create this in GitHub Settings → Environments
+      name: prod-approval   # requires manual approval in GitHub Environments
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -94,12 +95,15 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
       - name: Export Terraform outputs
+        working-directory: ./environment/${{ github.event.inputs.environment }}
         run: |
-          echo "DB_SECRET_NAME=$(terraform -chdir=infra output -raw db_secret_name)" >> tf_outputs.env
-          echo "DB_SECRET_ARN=$(terraform -chdir=infra output -raw db_secret_arn)" >> tf_outputs.env
+          set -e
+          echo "DB_SECRET_NAME=$(terraform output -raw db_secret_name)" >> tf_outputs.env
+          echo "DB_SECRET_ARN=$(terraform output -raw db_secret_arn)" >> tf_outputs.env
+          cat tf_outputs.env   # debug: show what was captured
 
       - name: Upload Terraform outputs as artifact
         uses: actions/upload-artifact@v4
         with:
           name: tf-outputs
-          path: tf_outputs.env
+          path: ./environment/${{ github.event.inputs.environment }}/tf_outputs.env
