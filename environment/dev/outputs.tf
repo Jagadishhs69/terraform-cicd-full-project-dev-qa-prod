@@ -12,10 +12,10 @@ output "dev_rds_endpoint" {
 
 output "db_secret_name" {
   description = "RDS credentials secret name"
-  value       = module.secretsmanager.secret_name
+  value       = module.secrets.secret_name
 }
 
 output "db_secret_arn" {
   description = "RDS credentials secret ARN"
-  value       = module.secretsmanager.secret_arn
+  value       = module.secrets.secret_arn
 }
