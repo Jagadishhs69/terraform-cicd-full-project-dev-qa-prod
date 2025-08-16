@@ -92,3 +92,14 @@ jobs:
       - name: Terraform Apply
         working-directory: ./environment/${{ github.event.inputs.environment }}
         run: terraform apply -auto-approve tfplan
+
+      - name: Export Terraform outputs
+        run: |
+          echo "DB_SECRET_NAME=$(terraform -chdir=infra output -raw db_secret_name)" >> tf_outputs.env
+          echo "DB_SECRET_ARN=$(terraform -chdir=infra output -raw db_secret_arn)" >> tf_outputs.env
+
+      - name: Upload Terraform outputs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf-outputs
+          path: tf_outputs.env
