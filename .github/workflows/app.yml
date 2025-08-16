@@ -62,25 +62,12 @@ jobs:
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Download Terraform outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: tf-outputs
-          path: .
-
-      - name: Load Terraform outputs
-        run: |
-          echo "Loading Terraform outputs..."
-          cat tf_outputs.env
-          set -a
-          source tf_outputs.env
-          set +a
-
+      # 🔹 Directly fetch DB credentials from Secrets Manager (no tf-outputs artifact needed)
       - name: Fetch DB Secrets from AWS Secrets Manager
         id: get-secrets
         run: |
           echo "Fetching DB secrets from Secrets Manager..."
-          SECRET=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_NAME" --query SecretString --output text)
+          SECRET=$(aws secretsmanager get-secret-value --secret-id myapp-${{ github.event.inputs.environment }}-db-secret --query SecretString --output text)
           echo "SECRET_STRING=$SECRET" >> $GITHUB_ENV
           echo "DB_USER=$(echo $SECRET | jq -r .username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(echo $SECRET | jq -r .password)" >> $GITHUB_ENV
