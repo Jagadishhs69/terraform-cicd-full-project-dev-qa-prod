@@ -1,12 +1,5 @@
 name: Application CI/CD
 
-# on:
-#   push:
-#     branches:
-#       - dev
-#       - stating
-#       - prod
-
 on:
   workflow_dispatch:
     inputs:
@@ -25,7 +18,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with: 
+        with:
           token: ${{ secrets.REPO_TOKEN }}
 
       - name: Configure AWS Credentials
@@ -63,3 +56,27 @@ jobs:
           IMAGE_TAG: latest
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Fetch DB Secrets from AWS Secrets Manager
+        id: get-secrets
+        run: |
+          SECRET_STRING=$(aws secretsmanager get-secret-value \
+            --secret-id myapp/${{ github.event.inputs.environment }}/db \
+            --query SecretString --output text)
+          echo "SECRET_STRING=$SECRET_STRING" >> $GITHUB_ENV
+
+      - name: Parse DB Secrets
+        run: |
+          echo "DB_USER=$(echo $SECRET_STRING | jq -r .username)" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$(echo $SECRET_STRING | jq -r .password)" >> $GITHUB_ENV
+          echo "DB_HOST=$(echo $SECRET_STRING | jq -r .host)" >> $GITHUB_ENV
+          echo "DB_NAME=$(echo $SECRET_STRING | jq -r .dbname)" >> $GITHUB_ENV
+
+      - name: Deploy Application Container
+        run: |
+          docker run -d \
+            -e DB_USER=$DB_USER \
+            -e DB_PASSWORD=$DB_PASSWORD \
+            -e DB_HOST=$DB_HOST \
+            -e DB_NAME=$DB_NAME \
+            -p 80:3000 ${{ steps.login-ecr.outputs.registry }}/dev-nodejs-app:latest
