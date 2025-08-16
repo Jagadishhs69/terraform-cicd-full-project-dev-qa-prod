@@ -63,7 +63,7 @@ jobs:
       - name: Fetch DB Secrets from AWS Secrets Manager
         id: get-secrets
         run: |
-          SECRET=$(aws secretsmanager get-secret-value --secret-id my-db-secret --query SecretString --output text)
+          SECRET=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
           echo "DB_USER=$(echo $SECRET | jq -r .username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(echo $SECRET | jq -r .password)" >> $GITHUB_ENV
           echo "DB_HOST=$(echo $SECRET | jq -r .host)" >> $GITHUB_ENV
