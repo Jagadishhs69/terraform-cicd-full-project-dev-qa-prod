@@ -61,7 +61,7 @@ jobs:
         id: get-secrets
         run: |
           SECRET_STRING=$(aws secretsmanager get-secret-value \
-            --secret-id myapp/${{ github.event.inputs.environment }}/db \
+            --secret-id dev/rds-credentials94 \
             --query SecretString --output text)
           echo "SECRET_STRING=$SECRET_STRING" >> $GITHUB_ENV
 
