@@ -57,6 +57,9 @@ jobs:
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
+      - name: Get secret name from Terraform
+        run: echo "SECRET_NAME=$(terraform -chdir=infra output -raw db_secret_name)" >> $GITHUB_ENV
+
       - name: Fetch DB Secrets from AWS Secrets Manager
         id: get-secrets
         run: |
