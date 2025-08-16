@@ -18,10 +18,13 @@ module "ecr" {
 }
 
 module "secrets" {
-  source      = "../../modules/secrets"
-  env         = var.environment
+  source        = "../../modules/secrets"
+  env           = var.environment
   db_username = var.db_username
   db_password = var.db_password
+  db_endpoint = module.rds.db_endpoint   # from RDS output
+  db_port     = module.rds.db_port       # from RDS output
+  db_name     = module.rds.db_name       # from RDS output
 }
 
 module "rds" {
