@@ -1,4 +1,4 @@
-resource "aws_secretsmanager_secret" "rds_credentials" {
+resource "aws_secretsmanager_secret" "db_secret" {
   name = "${var.env}-rds-credentials"
 }
 
