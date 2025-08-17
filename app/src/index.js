@@ -19,7 +19,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'postgres',
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT || 5432,
-  ssl: false // Aurora usually doesn't require SSL unless enforced
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // Root endpoint
