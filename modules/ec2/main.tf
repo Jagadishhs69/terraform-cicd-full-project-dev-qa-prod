@@ -10,33 +10,35 @@ resource "aws_instance" "app" {
             set -e
             echo "Starting user data script" > /var/log/user-data.log
 
-            # Update packages
+            # Update system
             apt-get update -y >> /var/log/user-data.log 2>&1
 
             # Install Docker
             echo "Installing Docker" >> /var/log/user-data.log
-            apt-get install -y docker.io unzip curl amazon-ssm-agent >> /var/log/user-data.log 2>&1
+            apt-get install -y docker.io >> /var/log/user-data.log 2>&1
             systemctl enable docker >> /var/log/user-data.log 2>&1
             systemctl start docker >> /var/log/user-data.log 2>&1
             usermod -a -G docker ubuntu >> /var/log/user-data.log 2>&1
 
-            # Enable & start SSM Agent
-            echo "Starting SSM Agent" >> /var/log/user-data.log
-            systemctl enable amazon-ssm-agent >> /var/log/user-data.log 2>&1
-            systemctl start amazon-ssm-agent >> /var/log/user-data.log 2>&1
-
             # Install AWS CLI v2
             echo "Installing AWS CLI v2" >> /var/log/user-data.log
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install
+            apt-get install -y unzip curl >> /var/log/user-data.log 2>&1
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" >> /var/log/user-data.log 2>&1
+            unzip awscliv2.zip >> /var/log/user-data.log 2>&1
+            ./aws/install >> /var/log/user-data.log 2>&1
 
-            # Authenticate to ECR
+            # Install & enable SSM Agent (for Ubuntu via snap)
+            echo "Installing SSM Agent" >> /var/log/user-data.log
+            snap install amazon-ssm-agent --classic >> /var/log/user-data.log 2>&1
+            systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service >> /var/log/user-data.log 2>&1
+            systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service >> /var/log/user-data.log 2>&1
+
+            # ECR Login
             echo "Logging into ECR" >> /var/log/user-data.log
             aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${var.ecr_repository_url} >> /var/log/user-data.log 2>&1
 
-            # Run Node.js App container
-            echo "Running Docker container" >> /var/log/user-data.log
+            # Run initial container (placeholder — future deployments via SSM)
+            echo "Running initial Docker container" >> /var/log/user-data.log
             docker run -d -p 3000:3000 \
               -e DB_USER=appadmin2 \
               -e DB_PASSWORD=securepassword123 \
@@ -51,7 +53,6 @@ resource "aws_instance" "app" {
   }
 }
 
-# IAM Role
 resource "aws_iam_role" "app_role" {
   name = "${var.env}-app-role"
   assume_role_policy = jsonencode({
@@ -68,13 +69,6 @@ resource "aws_iam_role" "app_role" {
   })
 }
 
-# Attach AWS Managed SSM Core Policy (required for SSM commands)
-resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role       = aws_iam_role.app_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-# IAM Policy with ECR, CloudWatch + SSM
 resource "aws_iam_role_policy" "app_policy" {
   name   = "${var.env}-app-policy"
   role   = aws_iam_role.app_role.id
@@ -103,11 +97,9 @@ resource "aws_iam_role_policy" "app_policy" {
       {
         Effect = "Allow"
         Action = [
-          "ssm:UpdateInstanceInformation",
-          "ssm:ListInstanceAssociations",
-          "ssm:DescribeInstanceInformation",
-          "ssmmessages:*",
-          "ec2messages:*"
+          "ssm:SendCommand",
+          "ssm:ListCommands",
+          "ssm:ListCommandInvocations"
         ]
         Resource = "*"
       }
@@ -115,7 +107,6 @@ resource "aws_iam_role_policy" "app_policy" {
   })
 }
 
-# IAM Instance Profile
 resource "aws_iam_instance_profile" "app" {
   name = "${var.env}-app-profile"
   role = aws_iam_role.app_role.name
