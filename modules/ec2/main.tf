@@ -16,6 +16,11 @@ resource "aws_instance" "app" {
             systemctl start docker >> /var/log/user-data.log 2>&1
             usermod -a -G docker ubuntu >> /var/log/user-data.log 2>&1
             echo "Logging into ECR" >> /var/log/user-data.log
+            sudo apt-get update -y
+            sudo apt-get install -y unzip curl
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
             aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${var.ecr_repository_url} >> /var/log/user-data.log 2>&1
             echo "Running Docker container" >> /var/log/user-data.log
             docker run -d -p 3000:3000 \
