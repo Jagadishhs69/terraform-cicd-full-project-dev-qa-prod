@@ -52,6 +52,11 @@ module "ec2" {
   rds_endpoint       = module.rds.rds_endpoint
 }
 
+module "ssm" {
+  source        = "../../modules/ssm"
+  app_role_name = module.ec2.app_role_name
+}
+
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
   env    = var.environment

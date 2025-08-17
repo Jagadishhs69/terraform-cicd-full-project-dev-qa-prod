@@ -5,3 +5,7 @@ output "instance_id" {
 output "instance_public_ip" {
   value = aws_instance.app.public_ip
 }
+
+output "app_role_name" {
+  value = aws_iam_role.app_role.name
+}

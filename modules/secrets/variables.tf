@@ -26,3 +26,8 @@ variable "db_name" {
   type    = string
   default = "postgres"
 }
+
+variable "db_host" {
+  type    = string
+  default = "postgres"
+}
