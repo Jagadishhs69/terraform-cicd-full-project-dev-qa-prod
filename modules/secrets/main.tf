@@ -1,5 +1,5 @@
 resource "aws_secretsmanager_secret" "rds_credentials" {
-  name = "${var.env}/rds-credentials94"
+  name = "${var.env}/rds-credentials95"
 }
 
 resource "aws_secretsmanager_secret_version" "rds_credentials_version" {
