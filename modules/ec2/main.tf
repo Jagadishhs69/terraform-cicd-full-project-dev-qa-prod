@@ -68,6 +68,12 @@ resource "aws_iam_role" "app_role" {
   })
 }
 
+# Attach AWS Managed SSM Core Policy (required for SSM commands)
+resource "aws_iam_role_policy_attachment" "ssm_core" {
+  role       = aws_iam_role.app_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # IAM Policy with ECR, CloudWatch + SSM
 resource "aws_iam_role_policy" "app_policy" {
   name   = "${var.env}-app-policy"
