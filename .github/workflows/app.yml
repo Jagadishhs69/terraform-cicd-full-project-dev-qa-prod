@@ -1,92 +1,99 @@
-name: Application CI/CD
+name: Deploy Node.js Application
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy (dev, staging, prod)'
+        description: "Deployment environment (dev/qa)"
         required: true
-        type: choice
-        options:
-          - dev
-          - staging
-          - prod
+        default: "dev"
+
+env:
+  AWS_REGION: ap-south-1
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.REPO_TOKEN }}
 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Authenticate with AWS
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.8
-
+      # Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build and Tag Docker Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: dev-nodejs-app
-          IMAGE_TAG: latest
-        run: |
-          cd app
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-
-      - name: Scan Docker Image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/dev-nodejs-app:latest
-          format: table
-          exit-code: '0'
-          severity: CRITICAL,HIGH
-
-      - name: Push Image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: dev-nodejs-app
-          IMAGE_TAG: latest
-        run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      # 🔹 Directly fetch DB credentials from Secrets Manager (no tf-outputs artifact needed)
-      - name: Fetch DB Secrets from AWS Secrets Manager
-        id: get-secrets
+      # Fetch RDS secrets from Secrets Manager
+      - name: Fetch DB Secrets
         run: |
           echo "Fetching DB secrets from Secrets Manager..."
-          SECRET=$(aws secretsmanager get-secret-value --secret-id dev-rds-credentials --query SecretString --output text)
+          SECRET=$(aws secretsmanager get-secret-value \
+            --secret-id ${{ github.event.inputs.environment }}/rds-credentials96 \
+            --query SecretString --output text)
+
           echo "SECRET_STRING=$SECRET" >> $GITHUB_ENV
           echo "DB_USER=$(echo $SECRET | jq -r .username)" >> $GITHUB_ENV
           echo "DB_PASSWORD=$(echo $SECRET | jq -r .password)" >> $GITHUB_ENV
           echo "DB_HOST=$(echo $SECRET | jq -r .host)" >> $GITHUB_ENV
           echo "DB_PORT=$(echo $SECRET | jq -r .port)" >> $GITHUB_ENV
-          # 🔹 If dbname is missing or empty, fallback to "postgres"
+
+          # Fallback dbname if not found
           DB_NAME=$(echo $SECRET | jq -r '.dbname // empty')
           if [ -z "$DB_NAME" ] || [ "$DB_NAME" == "null" ]; then
             DB_NAME="postgres"
           fi
           echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
 
-      - name: Deploy Application Container
+      # Build, Tag and Push Docker image
+      - name: Build, Tag, and Push Docker image
         run: |
-          echo "Deploying container with DB connection..."
-          docker run -d \
-            -e DB_USER=$DB_USER \
-            -e DB_PASSWORD=$DB_PASSWORD \
-            -e DB_HOST=$DB_HOST \
-            -e DB_PORT=$DB_PORT \
-            -e DB_NAME=$DB_NAME \
-            -p 80:3000 ${{ steps.login-ecr.outputs.registry }}/dev-nodejs-app:latest
+          IMAGE_REPO="${{ steps.login-ecr.outputs.registry }}/${{ github.event.inputs.environment }}-nodejs-app"
+          IMAGE_TAG="latest"
+
+          echo "Building Docker image..."
+          docker build -t $IMAGE_REPO:$IMAGE_TAG .
+
+          echo "Pushing Docker image to ECR..."
+          docker push $IMAGE_REPO:$IMAGE_TAG
+
+      # Deploy Application Container via SSM
+      - name: Deploy Application Container via SSM
+        run: |
+          echo "Fetching EC2 instance ID..."
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${{ github.event.inputs.environment }}-app-server" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+
+          if [ "$INSTANCE_ID" == "None" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "❌ No EC2 instance found with Name tag '${{ github.event.inputs.environment }}-app-server'"
+            exit 1
+          fi
+
+          echo "Sending SSM command to deploy container on EC2 ($INSTANCE_ID)..."
+          aws ssm send-command \
+            --targets "Key=instanceIds,Values=$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy Node.js App container" \
+            --parameters 'commands=[
+              "docker stop nodejs-app || true",
+              "docker rm nodejs-app || true",
+              "aws ecr get-login-password --region '${{ env.AWS_REGION }}' | docker login --username AWS --password-stdin '${{ steps.login-ecr.outputs.registry }}'",
+              "docker pull '${{ steps.login-ecr.outputs.registry }}/${{ github.event.inputs.environment }}-nodejs-app:latest'",
+              "docker run -d --name nodejs-app -p 80:3000 \
+                -e DB_USER=${DB_USER} \
+                -e DB_PASSWORD=${DB_PASSWORD} \
+                -e DB_HOST=${DB_HOST} \
+                -e DB_PORT=${DB_PORT} \
+                -e DB_NAME=${DB_NAME} \
+                '${{ steps.login-ecr.outputs.registry }}/${{ github.event.inputs.environment }}-nodejs-app:latest'"
+            ]'
